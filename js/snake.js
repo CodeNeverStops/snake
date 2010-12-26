@@ -2,20 +2,20 @@
  * @author loki 2010.12.24
  */
 ;(function(){
-    function Map(rows, cols) {
+    function Map(rows, cols){
         this.rows = rows;
         this.cols = cols;
     }
-    Map.prototype.create = function() {
+    Map.prototype.create = function(){
         var frag = document.createDocumentFragment();
         var table = document.createElement("table");
         table.cellPadding = "0px";
         table.cellSpacing = "0px";
-        for (var i = 0; i < this.rows; i ++) {
+        for (var i = 0; i < this.rows; i++) {
             var tr = document.createElement("tr");
-            for (var j = 0; j < this.cols; j ++) {
+            for (var j = 0; j < this.cols; j++) {
                 var cell = document.createElement("td");
-				cell.className = "floor";
+                cell.className = "floor";
                 cell.id = "cell_" + j + "_" + i;
                 tr.appendChild(cell);
             }
@@ -24,162 +24,178 @@
         frag.appendChild(table);
         gameContainer.appendChild(frag);
     };
-    Map.prototype.getCellByXY = function (x, y) {
+    Map.prototype.getCellByXY = function(x, y){
         return document.getElementById("cell_" + x + "_" + y);
-	};
-    function Food() {
+    };
+    function Food(){
         this.x = 0;
         this.y = 0;
+        this.onSnake = 0; // the food is generated on the snake body
     }
-    Food.prototype.generate = function () {
+    Food.prototype.generate = function(){
         this.x = Math.floor(Math.random() * map.rows);
-		this.y = Math.floor(Math.random() * map.cols);
-		var cell = map.getCellByXY(this.x, this.y);
-		cell.className = "food";
+        this.y = Math.floor(Math.random() * map.cols);
+        var cell = map.getCellByXY(this.x, this.y);
+        if (cell.className == 'snake') {
+            this.onSnake = 1;
+        }
+        cell.className = "food";
     };
     /**
-     * 
+     *
      * @param {Object} x
      * @param {Object} y
      * @param {Object} direct
      * @param {Object} len
      * @param {Object} speed
      */
-    function Snake(x, y, direct, len, speed) {
-		var self = this;
+    function Snake(x, y, direct, len, speed){
+        var self = this;
         this.body = [];
         if (len < 3) {
             len = 3;
-        } else if (len > 5) {
-            len = 5;
         }
-		for (var i = 0; i < len; i ++) {
-			var tmp_x = x + direct.x * i;
-			var tmp_y = y + direct.y * i;
-            this.body.unshift({x: tmp_x, y: tmp_y});
-		    var cell = map.getCellByXY(tmp_x, tmp_y);
-		    cell.className = "snake";
-		}
+        else 
+            if (len > 5) {
+                len = 5;
+            }
+        for (var i = 0; i < len; i++) {
+            var tmp_x = x + direct.x * i;
+            var tmp_y = y + direct.y * i;
+            this.body.unshift({
+                x: tmp_x,
+                y: tmp_y
+            });
+            var cell = map.getCellByXY(tmp_x, tmp_y);
+            cell.className = "snake";
+        }
         if (this.speed < 1) {
             this.speed = 1;
-        } else if (this.speed > 10) {
-            this.speed = 10;
-        } else {
-            this.speed = speed;
         }
+        else 
+            if (this.speed > 10) {
+                this.speed = 10;
+            }
+            else {
+                this.speed = speed;
+            }
         this.direct = direct;
-		this.timer = null;
-		if (this.timer == null) {
+        this.timer = null;
+        if (this.timer == null) {
             this.resume();
-		}
+        }
     }
-    Snake.prototype.move = function () {
-		//console.debug(this.direct);
-        var head = this.body[0];
-        var newhead = {
+    Snake.prototype.move = function(){
+        //console.debug(this.direct);
+        var cell, head = this.body[0], newhead = {
             x: head.x + this.direct.x,
             y: head.y + this.direct.y
         };
-		if (newhead.x < 0 || newhead.x > map.rows - 1 || newhead.y < 0 || newhead.y > map.cols - 1) {
-			alert('snake die');
-			clearInterval(this.timer);
-			return false;
-		}
+        if (newhead.x < 0 || newhead.x > map.rows - 1 || newhead.y < 0 || newhead.y > map.cols - 1) {
+            this.die();
+            return false;
+        }
         var len = this.body.length;
-        for (var i = 0; i < len; i ++) {
-            var tmp = this.body[i];
-            if (newhead.x == tmp.x && newhead.y == tmp.y) {
-                alert('snake die');
-                clearInterval(this.timer);
+        for (var i = 0; i < len; i++) {
+            var cell = this.body[i];
+            if (newhead.x == cell.x && newhead.y == cell.y) { // check whether the snake hit his body
+                this.die();
                 return false;
             }
+            cell.className = 'snake';
+            if (i == 0) {
+                continue;
+            }
+            if (food.onSnake == 0) { // for the performance
+                continue;
+            }
+            var prev = this.body[i - 1];
+            if (map.getCellByXY(prev.x, prev.y).className == 'food') {
+                cell.className = 'food';
+            }
         }
+        map.getCellByXY(newhead.x, newhead.y).className = "snake";
         this.body.unshift(newhead);
-		var cell = map.getCellByXY(newhead.x, newhead.y);
-        cell.className = "snake";
-		if (food.x == newhead.x && food.y == newhead.y) {
-			food.generate();
-		} else {
+        if (food.x == newhead.x && food.y == newhead.y) {
+            food.generate();
+        }
+        else {
             var tail = this.body[this.body.length - 1];
             cell = map.getCellByXY(tail.x, tail.y);
-            cell.className = "floor";
-            this.body.pop();	
-		}
+            if (cell.className == 'snake') { // if it is a food, then still show
+                cell.className = "floor";
+            }
+            this.body.pop();
+        }
     };
     Snake.prototype.changeDirect = function(e){
-		var newdirect = direct.getByKeyCode(e.keyCode);
-		// if the direction is available, then change the direction
-		if (!newdirect) {
-			return false;
-		}
-		if (newdirect.x == -this.direct.x && newdirect.y == this.direct.y) {
-			return false;
-		} else if (newdirect.y == -this.direct.y && newdirect.x == this.direct.x) {
-			return false;
-		}
-		this.direct = newdirect;
-	};
-    Snake.prototype.stop = function() {
+        var newdirect = direct.getByKeyCode(e.keyCode);
+        // if the direction is available, then change the direction
+        if (!newdirect) {
+            return false;
+        }
+        if (newdirect.x == -this.direct.x && newdirect.y == this.direct.y) {
+            return false;
+        }
+        else 
+            if (newdirect.y == -this.direct.y && newdirect.x == this.direct.x) {
+                return false;
+            }
+        this.direct = newdirect;
+    };
+    Snake.prototype.stop = function(){
         if (this.timer) {
             clearInterval(this.timer);
             this.timer = null;
         }
     };
-    Snake.prototype.resume = function() {
+    Snake.prototype.resume = function(){
         var self = this;
         if (!self.timer) {
             self.timer = setInterval(function(){
                 self.move();
             }, 1000 / self.speed);
         }
+    };
+    Snake.prototype.die = function(){
+        this.stop();
+        alert('snake die.');
+    };
+    function Direction(){
+        this.direct = {
+            37: {
+                x: -1,
+                y: 0
+            },
+            38: {
+                x: 0,
+                y: -1
+            },
+            39: {
+                x: 1,
+                y: 0
+            },
+            40: {
+                x: 0,
+                y: 1
+            }
+        };
     }
-	function Direction() {
-		this.direct = {
-			37: {
-				x: -1,
-				y: 0
-			},
-			38: {
-				x: 0,
-				y: -1
-			},
-			39: {
-				x: 1,
-				y: 0
-			},
-			40: {
-				x: 0,
-				y: 1
-			}
-		};
-	}
-	Direction.prototype.getByKeyCode = function (code) {
-		var direct = this.direct[code];
-		//console.debug(direct);
-		return direct;
-	};
-	Direction.prototype.getByRandom = function () {
-		var key = Math.floor(Math.random() * 4 + 37);
-		//console.debug(key);
-		var result = this.direct[key];
-		//console.debug(result);
-		return result;
-	};
-    function ControlPanel () {
-        var map_text,
-            map_select,
-            map_select_option,
-            map_select_option_text,
-            speed_input,
-            speed_text,
-            length_input,
-            length_text,
-            start_button,
-            stop_button,
-            element_list = [],
-            frag,
-            table;
-            
+    Direction.prototype.getByKeyCode = function(code){
+        var direct = this.direct[code];
+        //console.debug(direct);
+        return direct;
+    };
+    Direction.prototype.getByRandom = function(){
+        var key = Math.floor(Math.random() * 4 + 37);
+        //console.debug(key);
+        var result = this.direct[key];
+        //console.debug(result);
+        return result;
+    };
+    function ControlPanel(){
+        var map_text, map_select, map_select_option, map_select_option_text, speed_input, speed_text, length_input, length_text, start_button, stop_button, element_list = [], frag, table;
+        
         map_text = document.createTextNode("地图大小：");
         map_select = document.createElement("select");
         map_select.id = "cp_map_select";
@@ -208,7 +224,7 @@
         start_button.type = "button";
         start_button.value = "开始";
         start_button.id = "cp_start_button";
-        start_button.onclick = function() {
+        start_button.onclick = function(){
             start();
         };
         
@@ -216,24 +232,19 @@
         stop_button.type = "button";
         stop_button.value = "暂停";
         stop_button.id = "cp_stop_button";
-        stop_button.onclick = function() {
+        stop_button.onclick = function(){
             stop();
         };
         
-        element_list = [
-            [map_text, map_select],
-            [speed_text, speed_input],
-            [length_text, length_input],
-            [start_button, stop_button]
-        ];
+        element_list = [[map_text, map_select], [speed_text, speed_input], [length_text, length_input], [start_button, stop_button]];
         
         frag = document.createDocumentFragment();
         table = document.createElement("table");
         table.cellPadding = "0px";
         table.cellSpacing = "0px";
-        for (var i = 0; i < 4; i ++) {
+        for (var i = 0; i < 4; i++) {
             var tr = document.createElement("tr");
-            for (var j = 0; j < 2; j ++) {
+            for (var j = 0; j < 2; j++) {
                 var td = document.createElement("td");
                 td.appendChild(element_list[i][j]);
                 tr.appendChild(td);
@@ -243,7 +254,7 @@
         frag.appendChild(table);
         document.getElementById("control").appendChild(frag);
     }
-    function start() {
+    function start(){
         gameContainer.innerHTML = '';
         if (snake) {
             snake.stop();
@@ -259,41 +270,32 @@
         snake_speed = document.getElementById("cp_speed_input").value || snake_speed;
         x = Math.floor(Math.random() * (map_width - snake_length * 2) + parseInt(snake_length));
         y = Math.floor(Math.random() * (map_height - snake_length * 2) + parseInt(snake_length));
-        snake = new Snake(x , y, direct.getByRandom(), snake_length, snake_speed);
+        snake = new Snake(x, y, direct.getByRandom(), snake_length, snake_speed);
         food = new Food();
         food.generate();
     }
-    function stop() {
+    function stop(){
         if (game_stop == 0) {
             game_stop = 1;
-        } else {
+        }
+        else {
             game_stop = 0;
         }
         var stop_button = document.getElementById("cp_stop_button");
         if (game_stop == 1) {
             snake.stop();
             stop_button.value = '继续';
-        } else {
+        }
+        else {
             snake.resume();
             stop_button.value = '暂停';
         }
     }
-	var snake, food,
-	    map_width = 30,
-		map_height = 30,
-		snake_length = 5,
-		snake_speed = 5,
-        control_panel,
-        direct,
-        map,
-        snake,
-        food,
-        game_stop = 0,
-        map_size_hash = ["30x30", "40x40", "50x50", "60x60"],
-        gameContainer = document.getElementById("game");;
+    var snake, food, map_width = 30, map_height = 30, snake_length = 5, snake_speed = 5, control_panel, direct, map, snake, food, game_stop = 0, map_size_hash = ["30x30", "40x40", "50x50", "60x60"], gameContainer = document.getElementById("game");
+    ;
     control_panel = new ControlPanel();
     start();
-    document.onkeydown = function(e) {
+    document.onkeydown = function(e){
         snake.changeDirect(e);
     };
 })();
