@@ -1,31 +1,34 @@
 /**
  * @author loki 2010.12.24
  */
-;(function(){
+;
+(function(){
     function Map(rows, cols){
         this.rows = rows;
         this.cols = cols;
     }
-    Map.prototype.create = function(){
-        var frag = document.createDocumentFragment();
-        var table = document.createElement("table");
-        table.cellPadding = "0px";
-        table.cellSpacing = "0px";
-        for (var i = 0; i < this.rows; i++) {
-            var tr = document.createElement("tr");
-            for (var j = 0; j < this.cols; j++) {
-                var cell = document.createElement("td");
-                cell.className = "floor";
-                cell.id = "cell_" + j + "_" + i;
-                tr.appendChild(cell);
+    Map.prototype = {
+        create: function(){
+            var frag = document.createDocumentFragment();
+            var table = document.createElement("table");
+            table.cellPadding = "0px";
+            table.cellSpacing = "0px";
+            for (var i = 0; i < this.rows; i++) {
+                var tr = document.createElement("tr");
+                for (var j = 0; j < this.cols; j++) {
+                    var cell = document.createElement("td");
+                    cell.className = "floor";
+                    cell.id = "cell_" + j + "_" + i;
+                    tr.appendChild(cell);
+                }
+                table.appendChild(tr);
             }
-            table.appendChild(tr);
+            frag.appendChild(table);
+            gameContainer.appendChild(frag);
+        },
+        getCellByXY: function(x, y){
+            return document.getElementById("cell_" + x + "_" + y);
         }
-        frag.appendChild(table);
-        gameContainer.appendChild(frag);
-    };
-    Map.prototype.getCellByXY = function(x, y){
-        return document.getElementById("cell_" + x + "_" + y);
     };
     function Food(){
         this.x = 0;
@@ -85,81 +88,88 @@
             this.resume();
         }
     }
-    Snake.prototype.move = function(){
-        //console.debug(this.direct);
-        var cell, head = this.body[0], newhead = {
-            x: head.x + this.direct.x,
-            y: head.y + this.direct.y
-        };
-        if (newhead.x < 0 || newhead.x > map.rows - 1 || newhead.y < 0 || newhead.y > map.cols - 1) {
-            this.die();
-            return false;
-        }
-        var len = this.body.length;
-        for (var i = 0; i < len; i++) {
-            var cell = this.body[i];
-            if (newhead.x == cell.x && newhead.y == cell.y) { // check whether the snake hit his body
+    Snake.prototype = {
+        move: function(){
+            //console.debug(this.direct);
+            var cell, head = this.body[0], newhead = {
+                x: head.x + this.direct.x,
+                y: head.y + this.direct.y
+            };
+            if (newhead.x < 0 || newhead.x > map.rows - 1 || newhead.y < 0 || newhead.y > map.cols - 1) {
                 this.die();
                 return false;
             }
-            cell.className = 'snake';
-            if (i == 0) {
-                continue;
+            var len = this.body.length;
+            for (var i = 0; i < len; i++) {
+                var cell = this.body[i];
+                if (newhead.x == cell.x && newhead.y == cell.y) { // check whether the snake hit his body
+                    this.die();
+                    return false;
+                }
+                cell.className = 'snake';
+                if (i == 0) {
+                    continue;
+                }
+                if (food.onSnake == 0) { // for the performance
+                    continue;
+                }
+                var prev = this.body[i - 1];
+                if (map.getCellByXY(prev.x, prev.y).className == 'food') {
+                    cell.className = 'food';
+                }
             }
-            if (food.onSnake == 0) { // for the performance
-                continue;
+            map.getCellByXY(newhead.x, newhead.y).className = "snake";
+            this.body.unshift(newhead);
+            if (food.x == newhead.x && food.y == newhead.y) {
+                this.eat();
             }
-            var prev = this.body[i - 1];
-            if (map.getCellByXY(prev.x, prev.y).className == 'food') {
-                cell.className = 'food';
+            else {
+                var tail = this.body[this.body.length - 1];
+                cell = map.getCellByXY(tail.x, tail.y);
+                if (cell.className == 'snake') { // if it is a food, then still show
+                    cell.className = "floor";
+                }
+                this.body.pop();
             }
-        }
-        map.getCellByXY(newhead.x, newhead.y).className = "snake";
-        this.body.unshift(newhead);
-        if (food.x == newhead.x && food.y == newhead.y) {
+        },
+        eat: function (){
             food.generate();
-        }
-        else {
-            var tail = this.body[this.body.length - 1];
-            cell = map.getCellByXY(tail.x, tail.y);
-            if (cell.className == 'snake') { // if it is a food, then still show
-                cell.className = "floor";
-            }
-            this.body.pop();
-        }
-    };
-    Snake.prototype.changeDirect = function(e){
-        var newdirect = direct.getByKeyCode(e.keyCode);
-        // if the direction is available, then change the direction
-        if (!newdirect) {
-            return false;
-        }
-        if (newdirect.x == -this.direct.x && newdirect.y == this.direct.y) {
-            return false;
-        }
-        else 
-            if (newdirect.y == -this.direct.y && newdirect.x == this.direct.x) {
+            score.add(score_per_food);
+            score_panel.update(score.get());
+        },
+        changeDirect: function(e){
+            var newdirect = direct.getByKeyCode(e.keyCode);
+            // if the direction is available, then change the direction
+            if (!newdirect) {
                 return false;
             }
-        this.direct = newdirect;
-    };
-    Snake.prototype.stop = function(){
-        if (this.timer) {
-            clearInterval(this.timer);
-            this.timer = null;
+            if (newdirect.x == -this.direct.x && newdirect.y == this.direct.y) {
+                return false;
+            }
+            else 
+                if (newdirect.y == -this.direct.y && newdirect.x == this.direct.x) {
+                    return false;
+                }
+            this.direct = newdirect;
+        },
+        stop: function(){
+            if (this.timer) {
+                clearInterval(this.timer);
+                this.timer = null;
+            }
+        },
+        resume: function(){
+            var self = this;
+            if (!self.timer) {
+                self.timer = setInterval(function(){
+                    self.move();
+                }, 1000 / self.speed);
+            }
+        },
+        die: function(){
+            this.stop();
+            alert('snake die.');
         }
-    };
-    Snake.prototype.resume = function(){
-        var self = this;
-        if (!self.timer) {
-            self.timer = setInterval(function(){
-                self.move();
-            }, 1000 / self.speed);
-        }
-    };
-    Snake.prototype.die = function(){
-        this.stop();
-        alert('snake die.');
     };
     function Direction(){
         this.direct = {
@@ -181,17 +191,49 @@
             }
         };
     }
-    Direction.prototype.getByKeyCode = function(code){
-        var direct = this.direct[code];
-        //console.debug(direct);
-        return direct;
+    Direction.prototype = {
+        getByKeyCode: function(code){
+            var direct = this.direct[code];
+            //console.debug(direct);
+            return direct;
+        },
+        getByRandom: function(){
+            var key = Math.floor(Math.random() * 4 + 37);
+            //console.debug(key);
+            var result = this.direct[key];
+            //console.debug(result);
+            return result;
+        }
     };
-    Direction.prototype.getByRandom = function(){
-        var key = Math.floor(Math.random() * 4 + 37);
-        //console.debug(key);
-        var result = this.direct[key];
-        //console.debug(result);
-        return result;
+    function Score(){
+        var self = this;
+        self.score = 0;
+    }
+    Score.prototype = {
+        add: function(score){
+            var self = this;
+            self.score += parseInt(score);
+        },
+        get: function (){
+            return this.score;
+        }
+    };
+    function ScorePanel(){
+        var self = this;
+        panel = document.getElementById("score"),
+            frag = document.createDocumentFragment(),
+            text = document.createTextNode("计分牌："),
+            self.score = document.createTextNode("0");
+        self.score.id = "score_value";
+        frag.appendChild(text);
+        frag.appendChild(self.score);
+        panel.appendChild(frag);
+    }
+    ScorePanel.prototype = {
+        update: function (score){
+            var self = this;
+            self.score.nodeValue = parseInt(score);
+        }
     };
     function ControlPanel(){
         var map_text, map_select, map_select_option, map_select_option_text, speed_input, speed_text, length_input, length_text, start_button, stop_button, element_list = [], frag, table;
@@ -255,6 +297,8 @@
         document.getElementById("control").appendChild(frag);
     }
     function start(){
+        score = new Score();
+        score_panel.update(0);
         gameContainer.innerHTML = '';
         if (snake) {
             snake.stop();
@@ -291,11 +335,12 @@
             stop_button.value = '暂停';
         }
     }
-    var snake, food, map_width = 30, map_height = 30, snake_length = 5, snake_speed = 5, control_panel, direct, map, snake, food, game_stop = 0, map_size_hash = ["30x30", "40x40", "50x50", "60x60"], gameContainer = document.getElementById("game");
-    ;
+    var snake, food, map_width = 30, map_height = 30, snake_length = 5, snake_speed = 5, score_per_food = 100, control_panel, score_panel, score, direct, map, snake, food, game_stop = 0, map_size_hash = ["30x30", "40x40", "50x50"], gameContainer = document.getElementById("game");
+    score_panel = new ScorePanel();
     control_panel = new ControlPanel();
     start();
     document.onkeydown = function(e){
         snake.changeDirect(e);
     };
 })();
+
