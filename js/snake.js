@@ -241,7 +241,7 @@
         map_text = document.createTextNode("地图大小：");
         map_select = document.createElement("select");
         map_select.id = "cp_map_select";
-        for (var i = 0; i < 4; i++) {
+        for (var i = 0; i < map_size_hash.length; i++) {
             map_select_option = document.createElement("option");
             map_select_option.value = i;
             map_select_option.appendChild(document.createTextNode(map_size_hash[i]));
@@ -335,7 +335,7 @@
             stop_button.value = '暂停';
         }
     }
-    var snake, food, map_width = 30, map_height = 30, snake_length = 5, snake_speed = 5, score_per_food = 100, control_panel, score_panel, score, direct, map, snake, food, game_stop = 0, map_size_hash = ["30x30", "40x40", "50x50"], gameContainer = document.getElementById("game");
+    var snake, food, map_width = 30, map_height = 30, snake_length = 5, snake_speed = 10, score_per_food = 100, control_panel, score_panel, score, direct, map, snake, food, game_stop = 0, map_size_hash = ["30x30", "40x40", "50x50"], gameContainer = document.getElementById("game");
     score_panel = new ScorePanel();
     control_panel = new ControlPanel();
     start();
